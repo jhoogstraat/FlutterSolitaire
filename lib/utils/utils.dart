@@ -11,16 +11,16 @@ Image suitToImage(CardSuit suit, {required double scale}) {
 
   switch (suit) {
     case CardSuit.hearts:
-      assetName = 'assets/private/hearts.png';
+      assetName = 'assets/cards/private/hearts.png';
       break;
     case CardSuit.diamonds:
-      assetName = 'assets/private/diamonds.png';
+      assetName = 'assets/cards/private/diamonds.png';
       break;
     case CardSuit.clubs:
-      assetName = 'assets/private/clubs.png';
+      assetName = 'assets/cards/private/clubs.png';
       break;
     case CardSuit.spades:
-      assetName = 'assets/private/spades.png';
+      assetName = 'assets/cards/private/spades.png';
       break;
   }
 
@@ -32,13 +32,13 @@ final suitCache = <CardSuit, ui.Image>{};
 Future<void> cacheSuits() async {
   await Future.wait(
     [
-      _loadImage('assets/private/clubs.png')
+      _loadImage('assets/cards/private/clubs.png')
           .then((value) => suitCache[CardSuit.clubs] = value),
-      _loadImage('assets/private/hearts.png')
+      _loadImage('assets/cards/private/hearts.png')
           .then((value) => suitCache[CardSuit.hearts] = value),
-      _loadImage('assets/private/diamonds.png')
+      _loadImage('assets/cards/private/diamonds.png')
           .then((value) => suitCache[CardSuit.diamonds] = value),
-      _loadImage('assets/private/spades.png')
+      _loadImage('assets/cards/private/spades.png')
           .then((value) => suitCache[CardSuit.spades] = value),
     ],
   );

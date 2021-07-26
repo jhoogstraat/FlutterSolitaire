@@ -1,26 +1,28 @@
 import 'package:flutter/material.dart';
-import 'package:solitaire_flutter/app/screens/game_screen.dart';
-import 'package:solitaire_flutter/app/widgets/card_column.dart';
-import 'package:solitaire_flutter/models/playing_card.dart';
+import '../screens/game_screen.dart';
+import 'card_column.dart';
+import '../../models/playing_card.dart';
 
 import '../../utils/utils.dart';
 
 // PickableCard makes the card draggable and translates it according to
-// position in the stack.
+// position in the column.
 class PickableCard extends StatefulWidget {
   final VoidCallback? onDragStarted;
-  final VoidCallback? onDragEnded;
-  final PlayingCard playingCard;
+  final VoidCallback? onDragCanceled;
+  final bool isDraggable;
+  final PlayingCard card;
 
-  final int? columnIndex;
+  final List<PlayingCard> parent;
   final List<PlayingCard> attachedCards;
 
   const PickableCard({
     Key? key,
-    required this.playingCard,
+    required this.card,
+    required this.parent,
+    this.isDraggable = true,
     this.onDragStarted,
-    this.onDragEnded,
-    this.columnIndex,
+    this.onDragCanceled,
     this.attachedCards = const [],
   }) : super(key: key);
 
@@ -31,58 +33,36 @@ class PickableCard extends StatefulWidget {
 class _PickableCardState extends State<PickableCard> {
   @override
   Widget build(BuildContext context) {
-    final size = CardSizeProvider.of(context).size;
+    final cardSize = CardSizeProvider.of(context);
     return SizedBox(
-      width: size.width,
-      height: size.height,
-      child: !widget.playingCard.faceUp
-          ? _buildCard()
+      width: cardSize.width,
+      height: cardSize.height,
+      child: !widget.card.faceUp || !widget.isDraggable
+          ? CustomPaint(
+              willChange: false,
+              painter: CardPainter(widget.card),
+            )
           : Draggable<Map>(
-              child: _buildCard(),
-              onDragStarted: widget.onDragStarted,
-              onDragEnd: widget.onDragEnded != null
-                  ? (_) => widget.onDragEnded!.call()
-                  : null,
-              feedback: CardColumn(
-                cards: widget.attachedCards,
-                columnIndex: 1,
-                onCardsAdded: (card, position) {},
+              child: CustomPaint(
+                willChange: false,
+                painter: CardPainter(widget.card),
               ),
-              childWhenDragging: SizedBox(), //_buildCardFaceUp(),
+              onDragStarted: widget.onDragStarted,
+              onDraggableCanceled: (_, __) => widget.onDragCanceled?.call(),
+              feedback: CardSizeProvider(
+                width: cardSize.width,
+                height: cardSize.height,
+                child: CardColumn(
+                  cards: [widget.card, ...widget.attachedCards],
+                  isDragTarget: false,
+                ),
+              ),
+              childWhenDragging: const SizedBox(),
               data: {
-                "cards": widget.attachedCards,
-                "fromIndex": widget.columnIndex,
+                "source": widget.parent,
+                "cards": [widget.card, ...widget.attachedCards],
               },
             ),
-    );
-  }
-
-  Widget _buildCard() {
-    return CustomPaint(
-      willChange: false,
-      painter: CardPainter(widget.playingCard),
-    );
-  }
-
-  Widget _buildCardFaceUp() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                cardTypeToString(widget.playingCard),
-                // style: TextStyle(fontSize: 30.0),
-              ),
-              suitToImage(widget.playingCard.suit, scale: 30),
-            ],
-          ),
-          suitToImage(widget.playingCard.suit, scale: 11),
-        ],
-      ),
     );
   }
 }
@@ -95,7 +75,7 @@ class CardPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final rect = RRect.fromLTRBR(
-        0, 0, size.width, size.height, const Radius.circular(10));
+        0, 0, size.width, size.height, const Radius.circular(5));
     canvas.drawRRect(rect, Paint()..color = Colors.white);
     canvas.drawRRect(
       rect,
@@ -107,25 +87,36 @@ class CardPainter extends CustomPainter {
 
     if (card.faceUp) {
       final text = TextPainter(
-          text: TextSpan(
-            text: cardTypeToString(card),
-            style: const TextStyle(color: Colors.black, fontSize: 25),
-          ),
-          textDirection: TextDirection.ltr);
+        text: TextSpan(
+          text: cardTypeToString(card),
+          style: TextStyle(color: Colors.black, fontSize: size.width / 4),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+
       text.layout(maxWidth: size.width);
-      text.paint(canvas, const Offset(6, 6));
+
+      text.paint(canvas, const Offset(3, 3));
+
+      // Small image
+      final smallSize = size.width / 3;
       paintImage(
         canvas: canvas,
-        rect: Rect.fromLTWH(size.width - 44, 4, 40, 40),
+        rect:
+            Rect.fromLTWH(size.width - smallSize - 3, 3, smallSize, smallSize),
         image: suitCache[card.suit]!,
       );
+
+      // Big image
+      final bigSize = size.width / 1.5;
       paintImage(
         canvas: canvas,
-        rect: Rect.fromLTWH(size.width / 2 - 40, size.height - 84, 80, 80),
+        rect: Rect.fromLTWH(size.width / 2 - bigSize / 2,
+            size.height - bigSize - 8, bigSize, bigSize),
         image: suitCache[card.suit]!,
       );
     } else {
-      final deflatedRect = rect.deflate(5);
+      final deflatedRect = rect.deflate(3);
       canvas.drawRRect(
         deflatedRect,
         Paint()
@@ -133,7 +124,7 @@ class CardPainter extends CustomPainter {
           ..strokeWidth = 2
           ..style = PaintingStyle.stroke,
       );
-      final moreDeflatedRect = deflatedRect.deflate(5);
+      final moreDeflatedRect = deflatedRect.deflate(3);
       canvas.drawRRect(moreDeflatedRect, Paint()..color = Colors.blue.shade900);
     }
   }

@@ -6,6 +6,7 @@ enum CardSuit {
 }
 
 enum CardType {
+  ace,
   two,
   three,
   four,
@@ -18,7 +19,6 @@ enum CardType {
   jack,
   queen,
   king,
-  ace,
 }
 
 enum CardColor {
@@ -31,14 +31,12 @@ class PlayingCard {
   CardSuit suit;
   CardType type;
   bool faceUp;
-  bool opened;
   CardColor color;
 
   PlayingCard({
     required this.suit,
     required this.type,
     this.faceUp = false,
-    this.opened = false,
   }) : color = cardColorForSuit(suit);
 
   static CardColor cardColorForSuit(CardSuit cardSuit) {
