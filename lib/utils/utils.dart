@@ -1,31 +1,19 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/playing_card.dart';
 import 'dart:ui' as ui;
 
-Image suitToImage(CardSuit suit, {required double scale}) {
-  String assetName;
+typedef WillAcceptCardCallback = bool Function({
+  required List<PlayingCard> cards,
+  required List<PlayingCard> destination,
+});
 
-  switch (suit) {
-    case CardSuit.hearts:
-      assetName = 'assets/cards/private/hearts.png';
-      break;
-    case CardSuit.diamonds:
-      assetName = 'assets/cards/private/diamonds.png';
-      break;
-    case CardSuit.clubs:
-      assetName = 'assets/cards/private/clubs.png';
-      break;
-    case CardSuit.spades:
-      assetName = 'assets/cards/private/spades.png';
-      break;
-  }
-
-  return Image.asset(assetName, scale: scale);
-}
+typedef CardAcceptCallback = void Function(
+  List<PlayingCard> cards,
+  List<PlayingCard> source,
+);
 
 final suitCache = <CardSuit, ui.Image>{};
 

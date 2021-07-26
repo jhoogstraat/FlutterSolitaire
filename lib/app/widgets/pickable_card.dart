@@ -52,9 +52,9 @@ class _PickableCardState extends State<PickableCard> {
               feedback: CardSizeProvider(
                 width: cardSize.width,
                 height: cardSize.height,
+                spacing: cardSize.spacing,
                 child: CardColumn(
                   cards: [widget.card, ...widget.attachedCards],
-                  isDragTarget: false,
                 ),
               ),
               childWhenDragging: const SizedBox(),

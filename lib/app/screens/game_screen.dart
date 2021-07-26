@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:solitaire_flutter/app/widgets/animated_card_deck.dart';
 import '../widgets/card_column.dart';
 import '../widgets/card_deck.dart';
 import '../../models/game.dart';
@@ -12,10 +13,12 @@ class CardSizeProvider extends InheritedWidget {
     required Widget child,
     required this.width,
     required this.height,
+    required this.spacing,
   }) : super(key: key, child: child);
 
   final double width;
   final double height;
+  final double spacing;
 
   static CardSizeProvider of(BuildContext context) {
     return context.dependOnInheritedWidgetOfExactType<CardSizeProvider>()!;
@@ -36,6 +39,7 @@ class GameScreen extends StatefulWidget {
 
 class _GameScreenState extends State<GameScreen> {
   late Game game;
+  final openCardDeck = GlobalKey<AnimatedCardDeckState>();
 
   @override
   void initState() {
@@ -66,12 +70,14 @@ class _GameScreenState extends State<GameScreen> {
         backgroundColor: Colors.transparent,
         body: LayoutBuilder(
           builder: (context, constraints) {
-            final width =
-                min(constraints.maxWidth, constraints.maxHeight) / 7 - 5;
+            final width = min(constraints.maxWidth, constraints.maxHeight) /
+                    game.cardColumns.length -
+                5;
             final height = width * 1.56;
             return CardSizeProvider(
               width: width,
               height: height,
+              spacing: 5 / (game.cardColumns.length + 1),
               child: Column(
                 children: [
                   Row(
@@ -79,16 +85,17 @@ class _GameScreenState extends State<GameScreen> {
                     children: [
                       // Closed Deck
                       GestureDetector(
+                        onTap: _openCardFromDeck,
                         child: CardDeck(
                           cards: game.cardDeckClosed,
-                          isDragTarget: false,
-                          isDraggable: false,
                         ),
-                        onTap: _openCardFromDeck,
                       ),
 
                       // Open Deck
-                      CardDeck(cards: game.cardDeckOpened, isDragTarget: false),
+                      AnimatedCardDeck(
+                        key: openCardDeck,
+                        cards: game.cardDeckOpened,
+                      ),
 
                       // Spacer
                       SizedBox(width: width, height: height),
@@ -100,20 +107,10 @@ class _GameScreenState extends State<GameScreen> {
                             return CardDeck(cards: deck);
                           },
                           onWillAccept: (value) {
-                            // If deck is empty, allow ace.
-                            // If more than one card dropped, abort
-                            // Else card suit has to match last card suit and
-                            // type has to be the type after the last card type
-                            if (value == null || value["cards"].length > 1) {
-                              return false;
-                            }
-
-                            final PlayingCard cardAdded = value["cards"].last;
-                            return deck.isEmpty
-                                ? cardAdded.type == CardType.ace
-                                : cardAdded.suit == deck.last.suit &&
-                                    CardType.values.indexOf(cardAdded.type) ==
-                                        deck.length;
+                            return _willAcceptCardsOnFinalDeck(
+                              deck: deck,
+                              cards: value!["cards"],
+                            );
                           },
                           onAccept: (value) {
                             final List<PlayingCard> cards = value["cards"];
@@ -137,22 +134,22 @@ class _GameScreenState extends State<GameScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: game.cardColumns.map(
-                      (column) {
-                        return CardColumn(
-                          cards: column,
-                          onCardsAdded: (cards, source) {
-                            column.addAll(cards);
-                            cards.forEach(source.remove);
-                            // Turn new last card in column
-                            if (source.isNotEmpty) {
-                              source.last.faceUp = true;
-                            }
-                            _refreshState();
-                          },
-                        );
-                      },
-                    ).toList(),
+                    children: game.cardColumns
+                        .map(
+                          (column) => CardColumn(
+                            cards: column,
+                            willAcceptDrop: _willAcceptCardsOnColumn,
+                            onCardsAdded: (cards, source) {
+                              column.addAll(cards);
+                              cards.forEach(source.remove);
+                              if (source.isNotEmpty) {
+                                source.last.faceUp = true;
+                              }
+                              _refreshState();
+                            },
+                          ),
+                        )
+                        .toList(),
                   ),
                 ],
               ),
@@ -163,33 +160,142 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  void _openCardFromDeck() {
-    setState(() {
-      if (game.cardDeckClosed.isEmpty) {
-        game.cardDeckClosed.addAll(game.cardDeckOpened);
-        for (final card in game.cardDeckClosed) {
-          card.faceUp = false;
-        }
-        game.cardDeckOpened.clear();
-      } else {
-        game.cardDeckOpened
-            .add(game.cardDeckClosed.removeLast()..faceUp = true);
+  Future<void> _openCardFromDeck() async {
+    if (game.cardDeckClosed.isEmpty) {
+      game.cardDeckClosed.addAll(game.cardDeckOpened);
+      for (final card in game.cardDeckClosed) {
+        card.faceUp = false;
       }
-    });
+      game.cardDeckOpened.clear();
+    } else {
+      game.cardDeckOpened.add(game.cardDeckClosed.removeLast()..faceUp = true);
+    }
+
+    setState(() {});
+
+    openCardDeck.currentState!.controller.forward(from: 0);
   }
 
-  void _refreshState() {
-    print("----------------------------------");
-    print("Final Decks: ${game.finalDecks.map((e) => e.length)}");
-    print("Colums: ${game.cardColumns.map((e) => e.length)}");
-    print("Deck closed: ${game.cardDeckClosed.length}");
-    print("Deck opened: ${game.cardDeckOpened.length}");
+  bool _willAcceptCardsOnFinalDeck({
+    required List<PlayingCard> cards,
+    required List<PlayingCard> deck,
+  }) {
+    // Only accept one card at a time
+    if (cards.length != 1) {
+      return false;
+    }
 
+    final card = cards.last;
+
+    // Only ace allowed on empty deck
+    if (deck.isEmpty) {
+      return card.type == CardType.ace;
+    }
+
+    // Otherwise card suit has to match last card suit in the deck and
+    /// type has to be the type following the last card type in the deck
+    return card.suit == deck.last.suit &&
+        CardType.values.indexOf(card.type) == deck.length;
+  }
+
+  bool _willAcceptCardsOnColumn({
+    required List<PlayingCard> cards,
+    required List<PlayingCard> destination,
+  }) {
+    // If empty, only accept if king is first
+    if (destination.isEmpty) {
+      return cards.first.type == CardType.king;
+    }
+    print(destination.last.color);
+    print(destination.last.type);
+
+    print("cards ${cards.length} column ${destination.length}");
+
+    // Get dragged cards list
+    final firstCard = cards.first;
+    if (firstCard.color == CardColor.red) {
+      if (destination.last.color == CardColor.red) {
+        return false;
+      }
+
+      final lastColumnCardIndex =
+          CardType.values.indexOf(destination.last.type);
+      final firstDraggedCardIndex = CardType.values.indexOf(firstCard.type);
+
+      if (lastColumnCardIndex != firstDraggedCardIndex + 1) {
+        return false;
+      }
+    } else {
+      if (destination.last.color == CardColor.black) {
+        return false;
+      }
+
+      final lastColumnCardIndex =
+          CardType.values.indexOf(destination.last.type);
+      final firstDraggedCardIndex = CardType.values.indexOf(firstCard.type);
+
+      if (lastColumnCardIndex != firstDraggedCardIndex + 1) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /// Checks if the player has won or loose
+  /// Refreshes the display if game continues.
+  void _refreshState() {
     if (game.finalDecks.fold<int>(0, (p, deck) => p + deck.length) == 52) {
       _handleWin();
+    } else if (_isGameOver()) {
+      _handleLose();
     } else {
       setState(() {});
     }
+  }
+
+  bool _isGameOver() {
+    // See if open deck can be added somewhere
+    if (game.cardDeckOpened.isNotEmpty) {
+      final cards = [game.cardDeckOpened.last];
+      for (final deck in game.finalDecks) {
+        if (_willAcceptCardsOnFinalDeck(cards: cards, deck: deck)) {
+          return false;
+        }
+      }
+
+      for (final column in game.cardColumns) {
+        if (_willAcceptCardsOnColumn(destination: column, cards: cards)) {
+          return false;
+        }
+      }
+    }
+
+    // See if a top card in the columns can be added to the final decks
+    for (final column in game.cardColumns) {
+      if (column.isEmpty) continue;
+      for (final deck in game.finalDecks) {
+        if (_willAcceptCardsOnFinalDeck(cards: [column.last], deck: deck)) {
+          return false;
+        }
+      }
+    }
+
+    // See if any faceUp card in the colums can be added to another column
+    for (final column in game.cardColumns) {
+      for (final other in game.cardColumns) {
+        if (column.isEmpty || column == other) continue;
+
+        for (final card in column) {
+          if (!card.faceUp) continue;
+
+          if (_willAcceptCardsOnColumn(destination: other, cards: [card])) {
+            return false;
+          }
+        }
+      }
+    }
+
+    return true;
   }
 
   // Handle a win condition
@@ -203,7 +309,29 @@ class _GameScreenState extends State<GameScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                game = Game.klondike();
+                Navigator.pop(context);
+              },
+              child: const Text("Play again"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _handleLose() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("You lose!"),
+          content: const Text("Maybe next time..."),
+          actions: [
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  game = Game.klondike();
+                });
                 Navigator.pop(context);
               },
               child: const Text("Play again"),

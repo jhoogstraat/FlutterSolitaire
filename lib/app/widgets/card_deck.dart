@@ -1,25 +1,13 @@
 import 'package:flutter/material.dart';
-import '../screens/game_screen.dart';
-import 'card_column.dart';
 import '../../models/playing_card.dart';
+import 'empty_deck_indicator.dart';
 import 'pickable_card.dart';
 
-/// Basic card deck
+/// A basic card deck
 class CardDeck extends StatefulWidget {
-  final int? id;
   final List<PlayingCard> cards;
-  final CardAcceptCallback? onCardAdded;
-  final bool isDragTarget;
-  final bool isDraggable;
 
-  const CardDeck({
-    Key? key,
-    required this.cards,
-    this.id,
-    this.onCardAdded,
-    this.isDragTarget = true,
-    this.isDraggable = true,
-  }) : super(key: key);
+  const CardDeck({Key? key, required this.cards}) : super(key: key);
 
   @override
   _CardDeckState createState() => _CardDeckState();
@@ -40,27 +28,10 @@ class _CardDeckState extends State<CardDeck> {
         if (widget.cards.isNotEmpty)
           PickableCard(
             card: widget.cards.last,
-            isDraggable: widget.isDraggable,
+            isDraggable: true,
             parent: widget.cards,
           )
       ],
-    );
-  }
-}
-
-class EmptyDeckIndicator extends StatelessWidget {
-  const EmptyDeckIndicator({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: CardSizeProvider.of(context).width,
-      height: CardSizeProvider.of(context).height,
-      decoration: BoxDecoration(
-        color: Colors.white12,
-        borderRadius: BorderRadius.circular(6.0),
-        border: Border.all(color: Colors.white),
-      ),
     );
   }
 }
