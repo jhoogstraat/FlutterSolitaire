@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 enum CardSuit {
   spades,
   hearts,
@@ -8,7 +6,6 @@ enum CardSuit {
 }
 
 enum CardType {
-  one,
   two,
   three,
   four,
@@ -20,7 +17,8 @@ enum CardType {
   ten,
   jack,
   queen,
-  king
+  king,
+  ace,
 }
 
 enum CardColor {
@@ -30,24 +28,24 @@ enum CardColor {
 
 // Simple playing card model
 class PlayingCard {
-  CardSuit cardSuit;
-  CardType cardType;
+  CardSuit suit;
+  CardType type;
   bool faceUp;
   bool opened;
+  CardColor color;
 
   PlayingCard({
-    @required this.cardSuit,
-    @required this.cardType,
+    required this.suit,
+    required this.type,
     this.faceUp = false,
     this.opened = false,
-  });
+  }) : color = cardColorForSuit(suit);
 
-  CardColor get cardColor {
-    if(cardSuit == CardSuit.hearts || cardSuit == CardSuit.diamonds) {
+  static CardColor cardColorForSuit(CardSuit cardSuit) {
+    if (cardSuit == CardSuit.hearts || cardSuit == CardSuit.diamonds) {
       return CardColor.red;
     } else {
       return CardColor.black;
     }
   }
-
 }
