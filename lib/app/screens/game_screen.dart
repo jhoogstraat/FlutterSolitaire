@@ -1,7 +1,10 @@
 import 'dart:math';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:solitaire_flutter/app/widgets/animated_card_deck.dart';
+import 'package:solitaire_flutter/app/widgets/card/pickable_card.dart';
+import 'package:solitaire_flutter/app/widgets/card_drawer.dart';
 import '../widgets/card_column.dart';
 import '../widgets/card_deck.dart';
 import '../../models/game.dart';
@@ -74,56 +77,59 @@ class _GameScreenState extends State<GameScreen> {
                     game.cardColumns.length -
                 5;
             final height = width * 1.56;
+            final spacing = 5 / (game.cardColumns.length + 1);
             return CardSizeProvider(
               width: width,
               height: height,
-              spacing: 5 / (game.cardColumns.length + 1),
+              spacing: spacing,
               child: Column(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  Stack(
+                    alignment: Alignment.topRight,
                     children: [
-                      // Closed Deck
-                      GestureDetector(
-                        onTap: _openCardFromDeck,
-                        child: CardDeck(
-                          cards: game.cardDeckClosed,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          // Final decks
+                          for (final deck in game.finalDecks)
+                            DragTarget<Map>(
+                              builder: (context, listOne, listTwo) {
+                                return CardDeck(cards: deck);
+                              },
+                              onWillAccept: (value) {
+                                return _willAcceptCardsOnFinalDeck(
+                                  deck: deck,
+                                  cards: value!["cards"],
+                                );
+                              },
+                              onAccept: (value) {
+                                final List<PlayingCard> cards = value["cards"];
+                                final List<PlayingCard> source =
+                                    value["source"];
+                                deck.addAll(cards);
+                                cards.forEach(source.remove);
+                                // Turn new last card in column
+                                if (source.isNotEmpty) {
+                                  source.last.faceUp = true;
+                                }
+                                _refreshState();
+                              },
+                            ),
+
+                          // Spacer
+                          SizedBox(width: width, height: height),
+                          SizedBox(width: width, height: height),
+                          SizedBox(width: width, height: height),
+                        ],
+                      ),
+                      // Decks for drawing cards
+                      Positioned(
+                        right: 9,
+                        child: SizedBox(
+                          width: 3 * width + 2 * spacing,
+                          child: CardDrawer(cards: game.cardDeckClosed),
                         ),
-                      ),
-
-                      // Open Deck
-                      AnimatedCardDeck(
-                        key: openCardDeck,
-                        cards: game.cardDeckOpened,
-                      ),
-
-                      // Spacer
-                      SizedBox(width: width, height: height),
-
-                      // Final decks
-                      for (final deck in game.finalDecks)
-                        DragTarget<Map>(
-                          builder: (context, listOne, listTwo) {
-                            return CardDeck(cards: deck);
-                          },
-                          onWillAccept: (value) {
-                            return _willAcceptCardsOnFinalDeck(
-                              deck: deck,
-                              cards: value!["cards"],
-                            );
-                          },
-                          onAccept: (value) {
-                            final List<PlayingCard> cards = value["cards"];
-                            final List<PlayingCard> source = value["source"];
-                            deck.addAll(cards);
-                            cards.forEach(source.remove);
-                            // Turn new last card in column
-                            if (source.isNotEmpty) {
-                              source.last.faceUp = true;
-                            }
-                            _refreshState();
-                          },
-                        )
+                      )
                     ],
                   ),
 

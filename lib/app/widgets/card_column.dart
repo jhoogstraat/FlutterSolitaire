@@ -6,7 +6,7 @@ import 'package:solitaire_flutter/utils/utils.dart';
 
 import '../../models/playing_card.dart';
 import '../screens/game_screen.dart';
-import 'pickable_card.dart';
+import 'card/pickable_card.dart';
 
 // This is a stack of overlayed cards (implemented using a stack)
 class CardColumn extends StatefulWidget {

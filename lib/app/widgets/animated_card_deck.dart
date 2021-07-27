@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/playing_card.dart';
 import 'empty_deck_indicator.dart';
-import 'pickable_card.dart';
+import 'card/pickable_card.dart';
 
 /// A basic card deck
 class AnimatedCardDeck extends StatefulWidget {
